@@ -1,0 +1,72 @@
+\documentclass{article}
+\usepackage[a4paper, total={6in, 8in}]{geometry}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
+\urlstyle{same}
+\newcommand{\norm}[2]{\left \lVert #1 \right \rVert_{#2}}
+
+\begin{document}
+
+\begin{enumerate}
+    \item Partiendo de la ecuación 3, muestre que el vector de rankings p es solución de la ecuación
+    $Mp = b$,  con $M = \frac{N}{\alpha}  (I - (1 - \alpha )C)$ y $b = 1.$
+
+La ecuación 3 es: $p = (1-\alpha)Cp + \frac{\alpha}{N} $, luego:
+
+\begin{displaymath}
+    p - (1-\alpha)Cp = \frac{\alpha}{N}
+\end{displaymath}
+\begin{displaymath}
+    \equiv pI - (1-\alpha)Cp = \frac{\alpha}{N}
+\end{displaymath}
+\begin{displaymath}
+    \equiv (I - (1-\alpha)C)p = \frac{\alpha}{N}
+\end{displaymath}
+\[ \equiv \frac{N}{\alpha}(I - (1-\alpha)C)p = 1 \]
+y con M = $\frac{N}{\alpha}(I - (1-\alpha)C)$ resulta lo pedido: $Mp = b = 1$.
+
+\item ¿Qué condiciones se deben cumplir para que exista una única solución a la ecuación del
+punto anterior? ¿Se cumplen estas condiciones para la matriz M tal como fue construida
+para los museos, cuando $0 < \alpha < 1$? Demuestre que se cumplen o dé un contraejemplo.
+
+Dado el item anterior, la ecuación $Mp = 1$ tendrá solución única cuando M sea inversible. Una condición necesaria y suficiente para esto es el núcleo de M sea distinto de 0.
+
+Primero, uso tip dado en clase y pruebo: \newline 
+\[\text{B} \in \mathbb{R}^{nxn} / \norm{B}{1} < 1 \Rightarrow (I-B) \text{ es inversible}\]
+
+Si existe $(I-B)^{-1}$ entonces existe x $\neq$ 0 $\in \mathbb{R}^{n}$ tal que $(I-B)X = 0$, luego:
+\begin{align*} 
+x-Bx = 0 \\
+\Leftrightarrow x = Bx
+\end{align*}
+Uso la norma-1 que preserva la igualdad y usa la hipótesis. Ademas, puedo suponer que $\norm{x}{1} = 1$:
+\[\norm{x}{1} =  \norm{Bx}{1} \Rightarrow 1 = \norm{Bx}{1}\]
+
+y se cumple que $\norm{Bx}{1} \leq \norm{B}{1}\norm{x}{1}$ y con la hipótesis $\norm{B}{1} < 1 \Rightarrow $
+$\norm{Bx}{1} \leq \norm{B}{1}\norm{x}{1} \leq \norm{B}{1} < 1$
+resulta que:
+\[\norm{Bx}{1} = 1 \wedge \norm{Bx}{1} < 1\]
+Lo cual es imposible, lo único que supuse es que $x \neq 0$, debe ser entonces que sólo se cumple (I-B)X = 0 cuando x = 0. Por lo tanto $(I-B)$ es inversible.
+
+Volviendo al problema original: $ Mp = 1$ tendrá solución única si la matriz M resulta inversible, esto es, si: $(I - (1-\alpha)C)$ es inversible.
+Por un lado, observo que $\norm{C}{1} = 1$ dado que por definición sus columnas suman 1, por otro, $1-\alpha< 1$. \newline
+\newline
+Es decir que $\norm{C(1-\alpha)}{1} = (1-\alpha)\norm{C}{1} < 1$.
+
+Esto es análogo al problema de la existencia de $(I-B)^{-1}$, por tanto $(I - (1-\alpha)C)^{-1}$ existe y la solución p es única con la matriz M y $\alpha$ así definidos.
+
+
+\end{enumerate}
+\end{document}
+
