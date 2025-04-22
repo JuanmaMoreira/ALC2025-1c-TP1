@@ -50,33 +50,23 @@ def calculaLU(A):
 
     return L, U, P
 
-def inversa_por_LU(L, U):
-    n = L.shape[0]
-    I = np.eye(n)
-    A_inv = np.zeros_like(I)
+def calcular_matriz_K_inv(A):
+    # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A 
+    dimFilas = A.shape[0]
+    Kinv = np.eye(dimFilas) #esto esta ok si la matriz es cuadrada.
+    for i in range(dimFilas):
+        suma_fila = np.sum(A[i])
+        Kinv[i,i] = 0 if suma_fila == 0 else 1 / suma_fila
+    return Kinv
 
-    for i in range(n):
-        e = I[:, i]
-        y = solve_triangular(L, e, lower=True)
-        x = solve_triangular(U, y)
-        A_inv[:, i] = x
-
-    return A_inv
-    
 def calcular_matriz_C(A): 
     # Función para calcular la matriz de trancisiones C
     # A: Matriz de adyacencia
     # Retorna la matriz C 
     #Construyo la matriz K inversa directamente
-    dimFilas = A.shape[0]
-    #calculo Kinv directamente
-    Kinv = np.eye(dimFilas) #esto esta ok si la matriz es cuadrada.
-    for i in range (dimFilas):
-        Kinv[i,i] = 0 if np.sum(A[i]) == 0 else 1 / np.sum(A[i])
-        
+    Kinv = calcular_matriz_K_inv(A)    
     return np.transpose(A) @ Kinv # Calculo C
-
-    
+ 
 def calcula_pagerank(A,alfa):
     # Función para calcular PageRank usando LU
     # A: Matriz de adyacencia
@@ -100,11 +90,23 @@ def calcula_matriz_C_continua(D):
     D = D.copy()
     F = 1/D
     np.fill_diagonal(F,0)
-    Kinv = ... # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de F 
-    C = ... # Calcula C multiplicando Kinv y F
+    Kinv = calcular_matriz_K_inv(F) # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de F 
+    C = np.transpose(F) @ Kinv # Calcula C multiplicando Kinv y F
     return C
 
-
+def calcula_B(C,cantidad_de_visitas):
+    # Recibe la matriz T de transiciones, y calcula la matriz B que representa la relación entre el total de visitas y el número inicial de visitantes
+    # suponiendo que cada visitante realizó cantidad_de_visitas pasos
+    # C: Matirz de transiciones
+    # cantidad_de_visitas: Cantidad de pasos en la red dado por los visitantes. Indicado como r en el enunciado
+    # Retorna:Una matriz B que vincula la cantidad de visitas w con la cantidad de primeras visitas v
+    B = np.eye(C.shape[0])
+    C_k = np.eye(C.shape[0])
+    for i in range(cantidad_de_visitas-1):
+        C_k = C_k @ C
+        B += C_k # Sumamos las matrices de transición para cada cantidad de pasos
+    
+    return B
 
 def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=100000, return_fig=False):
     """
@@ -152,15 +154,4 @@ def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=100000, re
     else:
         plt.show()
 
-#def calcula_B(C,cantidad_de_visitas):
-    # Recibe la matriz T de transiciones, y calcula la matriz B que representa la relación entre el total de visitas y el número inicial de visitantes
-    # suponiendo que cada visitante realizó cantidad_de_visitas pasos
-    # C: Matirz de transiciones
-    # cantidad_de_visitas: Cantidad de pasos en la red dado por los visitantes. Indicado como r en el enunciado
-    # Retorna:Una matriz B que vincula la cantidad de visitas w con la cantidad de primeras visitas v
-    #B = np.eye(C.shape[0])
-#    for i in range(cantidad_de_visitas-1):
-#        
-#        # Sumamos las matrices de transición para cada cantidad de pasos
-    
-#    return B
+
