@@ -28,20 +28,19 @@ def inversa_por_LU(L, U):
 
     return A_inv
     
-def calcula_matriz_C(A): 
+def calcular_matriz_C(A): 
     # Función para calcular la matriz de trancisiones C
     # A: Matriz de adyacencia
-    # Retorna la matriz C
-    determinante = np.linalg.det(A) # puede tener errores de redondeo... ojo
-    if determinante != 0:
-        #Construyo la matriz K
-        K = np.eye(A.shape[0]) #esto esta ok si la matriz es cuadrada.
-        for fila in K.shape[0]:
-            K[fila, fila] = np.sum(A[fila])
-        # Ahora para la inversa hay que hacer 1/det * ... o usar LU
-        Kinv = inversa_por_LU(calculaLU(K)) # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A
-        C = Kinv @ A # Calcula C multiplicando Kinv y A
-    return C
+    # Retorna la matriz C 
+    if np.linalg.det(A) == 0: return None
+    #Construyo la matriz K inversa directamente
+    dimFilas = A.shape[0]
+    #calculo Kinv directamente
+    Kinv = np.eye(dimFilas) #esto esta ok si la matriz es cuadrada.
+    for i in range (dimFilas):
+        Kinv[i,i] = 0 if np.sum(A[i]) == 0 else 1 / np.sum(A[i])
+        
+    return np.transpose(A) @ Kinv # Calculo C
 
     
 def calcula_pagerank(A,alfa):
