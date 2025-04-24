@@ -108,7 +108,7 @@ def calcula_B(C,cantidad_de_visitas):
     
     return B
 
-def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=100000, return_fig=False):
+def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=75000, ax=None):
     """
     Grafica la red de museos sobre el mapa, asignando tamaños de nodo proporcionales a PageRank.
 
@@ -124,10 +124,13 @@ def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=100000, re
         Vector de PageRank de los museos.
     titulo : str
         Título del gráfico.
-    tamaño_constante : float
+    tamaño_base : float
         Constante para escalar los tamaños de los nodos.
+    ax : matplotlib.axes.Axes, opcional
+        Eje en el que dibujar el gráfico. Si no se da, se crea uno nuevo.
     """
-    fig, ax = plt.subplots(figsize=(15, 15))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 7))
 
     # Graficar barrios
     barrios.to_crs("EPSG:22184").boundary.plot(color='#bbbbbb', ax=ax)
@@ -142,16 +145,13 @@ def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=100000, re
         alpha=0.6,
         edgecolors='black',
         linewidths=0.5,
-        width=1.1,
+        width=1.5,
         with_labels=False
     )
 
-    plt.title(titulo, fontsize=20)
-    plt.axis('off')
-    
-    if return_fig:
-        return fig
-    else:
-        plt.show()
+    ax.set_title(titulo, fontsize=12)
+    ax.axis('off')
+
+
 
 
