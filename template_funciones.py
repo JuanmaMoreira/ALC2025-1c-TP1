@@ -50,6 +50,13 @@ def calculaLU(A):
 
     return L, U, P
 
+def resolver_con_LU(A, b):
+    # Resuelve el sistema Ax = b usando LU con pivoteo.
+    L, U, P = calculaLU(A)
+    y = scipy.linalg.solve_triangular(L, P @ b, lower=True)
+    x = scipy.linalg.solve_triangular(U, y)
+    return x
+
 def calcular_matriz_K_inv(A):
     # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A 
     dimFilas = A.shape[0]
@@ -77,10 +84,8 @@ def calcula_pagerank(A,alfa):
     I = np.eye(N)
 
     M = (N / alfa) * (I - (1 - alfa) * C)
-    L, U, P = calculaLU(M) # Calculamos descomposición LU a partir de C y d
-    b = P @ np.ones(N)
-    Up = scipy.linalg.solve_triangular(L,b,lower=True) # Primera inversión usando L
-    p = scipy.linalg.solve_triangular(U,Up) # Segunda inversión usando U
+    b = np.ones(N)
+    p = resolver_con_LU(M, b)
     return p
 
 def calcula_matriz_C_continua(D): 
@@ -108,6 +113,21 @@ def calcula_B(C,cantidad_de_visitas):
     
     return B
 
+def norma_1_matricial(A):
+    # Suma máxima por columnas
+    return np.max(np.sum(np.abs(A), axis=0))
+
+def condicion_1_por_LU(A):
+    # Devuelve el número de condición 1 de la matriz A
+    n = A.shape[0]
+    Ainv = np.zeros_like(A, dtype=float)
+
+    for i in range(n):
+        e = np.zeros(n)
+        e[i] = 1
+        Ainv[:, i] = resolver_con_LU(A, e)
+
+    return norma_1_matricial(A) * norma_1_matricial(Ainv)
 def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=75000, ax=None):
     """
     Grafica la red de museos sobre el mapa, asignando tamaños de nodo proporcionales a PageRank.
