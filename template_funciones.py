@@ -60,7 +60,7 @@ def resolver_con_LU(A, b):
 def calcular_matriz_K_inv(A):
     # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A 
     dimFilas = A.shape[0]
-    Kinv = np.eye(dimFilas) #esto esta ok si la matriz es cuadrada.
+    Kinv = np.eye(dimFilas)
     for i in range(dimFilas):
         suma_fila = np.sum(A[i])
         Kinv[i,i] = 0 if suma_fila == 0 else 1 / suma_fila
@@ -93,8 +93,9 @@ def calcula_matriz_C_continua(D):
     # A: Matriz de adyacencia
     # Retorna la matriz C en versión continua
     D = D.copy()
-    F = 1/D
-    np.fill_diagonal(F,0)
+    with np.errstate(divide='ignore'):  # evita el warning de división por cero
+        F = 1 / D
+    np.fill_diagonal(F,0) # Reemplaza los inf de la diagonal por ceros
     Kinv = calcular_matriz_K_inv(F) # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de F 
     C = np.transpose(F) @ Kinv # Calcula C multiplicando Kinv y F
     return C
@@ -128,6 +129,7 @@ def condicion_1_por_LU(A):
         Ainv[:, i] = resolver_con_LU(A, e)
 
     return norma_1_matricial(A) * norma_1_matricial(Ainv)
+
 def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=75000, ax=None):
     """
     Grafica la red de museos sobre el mapa, asignando tamaños de nodo proporcionales a PageRank.
