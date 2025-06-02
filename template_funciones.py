@@ -17,38 +17,50 @@ def construye_adyacencia(D,m):
     return(A)
 
 def calculaLU(A):
+    """
     # Para esta funcion seguimos el algoritmo planteado en el libro Matrix Computations,
     # de Gene H. Golub, Charles F. Van Loan (p. 128)
-    L, U = [],[]
-    P = None
-    
-    n = A.shape[0]
-    L = np.eye(n)
-    U = A.copy()
-    P = np.eye(n)
-    
-    for k in range(n-1):
+    Calcula la factorización LU con pivoteo parcial de la matriz A.
+    Retorna matrices L (triangular inferior), U (triangular superior) y P (permutación) tales que:
+    PA = LU
+    """
+    n = A.shape[0]  # Obtenemos el tamaño de la matriz A
+    # Inicializamos las matrices que vamos a devolver
+    L = np.eye(n)   
+    U = A.copy()    
+    P = np.eye(n)   
+
+    # Recorremos cada columna
+    for k in range(n - 1):
+        # Paso de pivoteo parcial:
+        # Buscamos el índice de la fila con el mayor valor absoluto en la columna k (desde fila k hasta n)
         max_index = k
-        max_valor = abs(U[k,k])
-        for i in range(k+1, n):
-            if abs(U[i,k]) > max_valor:
-                max_valor = abs(U[i,k])
+        max_valor = abs(U[k, k])
+        for i in range(k + 1, n):
+            if abs(U[i, k]) > max_valor:
+                max_valor = abs(U[i, k])
                 max_index = i
-        
+
+        # Si el pivote no está en la fila actual, intercambiamos filas en U, P y L
         if max_index != k:
-            U[[k,max_index], :] = U[[max_index,k], :]
-            P[[k,max_index], :] = P[[max_index,k], :]
+            # Intercambio de filas en U
+            U[[k, max_index], :] = U[[max_index, k], :]
+            # Intercambio correspondiente en P
+            P[[k, max_index], :] = P[[max_index, k], :]
+            # Intercambio de las partes ya calculadas de L (hasta la columna k)
             if k > 0:
-                L[[k,max_index], :k] = L[[max_index,k], :k]
-                
-        if U[k,k] != 0:
-            for i in range(k+1, n):
-                L[i,k] = U[i,k] / U[k,k]
-                U[i,k:] = U[i,k:] - L[i,k]*U[k,k:]
-    
-    
+                L[[k, max_index], :k] = L[[max_index, k], :k]
+
+        # Paso de eliminación gaussiana (solo si el pivote es distinto de 0)
+        if U[k, k] != 0:
+            for i in range(k + 1, n):
+                # Calculamos el multiplicador que anula la entrada debajo del pivote
+                L[i, k] = U[i, k] / U[k, k]
+                # Eliminamos el elemento actual de la columna
+                U[i, k:] = U[i, k:] - L[i, k] * U[k, k:]
 
     return L, U, P
+
 
 def resolver_con_LU(A, b):
     # Resuelve el sistema Ax = b usando LU con pivoteo.
@@ -130,49 +142,67 @@ def condicion_1_por_LU(A):
 
     return norma_1_matricial(A) * norma_1_matricial(Ainv)
 
-def graficar_red_museos(G, G_layout, barrios, p, titulo, tamaño_base=75000, ax=None):
+def graficar_redes_museos_set(grafos, pageranks, G_layout, barrios, titulo_general, tamaño_base=75000, n_cols=2):
     """
-    Grafica la red de museos sobre el mapa, asignando tamaños de nodo proporcionales a PageRank.
+    Grafica un set de redes de museos con sus respectivos pageranks en una grilla.
 
     Parámetros:
-    ------------
-    G : networkx.Graph
-        Grafo de museos.
+    -----------
+    grafos : dict
+        Diccionario {clave: grafo}, donde la clave puede ser el valor de m o alfa.
+    pageranks : dict
+        Diccionario {clave: vector de pagerank}, con las mismas claves que 'grafos'.
     G_layout : dict
-        Layout de coordenadas (posición de cada museo).
+        Diccionario de posiciones de los nodos.
     barrios : geopandas.GeoDataFrame
         Geometría de los barrios de CABA.
-    p : numpy.ndarray
-        Vector de PageRank de los museos.
-    titulo : str
-        Título del gráfico.
+    titulo_general : str
+        Título general para todo el set de gráficos.
     tamaño_base : float
-        Constante para escalar los tamaños de los nodos.
-    ax : matplotlib.axes.Axes, opcional
-        Eje en el que dibujar el gráfico. Si no se da, se crea uno nuevo.
+        Escalado base para el tamaño de los nodos.
+    n_cols : int
+        Cantidad de columnas en la grilla.
     """
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(7, 7))
+    claves = list(grafos.keys())
+    n = len(claves)
+    n_rows = (n + n_cols - 1) // n_cols
 
-    # Graficar barrios
-    barrios.to_crs("EPSG:22184").boundary.plot(color='#bbbbbb', ax=ax)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 6*n_rows))
+    axes = axes.flatten()
 
-    # Calcular tamaño de nodos
-    node_sizes = tamaño_base * p
+    for i, clave in enumerate(claves):
+        ax = axes[i]
+        G = grafos[clave]
+        p = pageranks[clave]
 
-    # Dibujar red
-    nx.draw_networkx(
-        G, pos=G_layout, ax=ax,
-        node_size=node_sizes,
-        alpha=0.6,
-        edgecolors='black',
-        linewidths=0.5,
-        width=1.5,
-        with_labels=False
-    )
+        # Graficar barrios
+        barrios.to_crs("EPSG:22184").boundary.plot(color='#bbbbbb', ax=ax)
 
-    ax.set_title(titulo, fontsize=12)
-    ax.axis('off')
+        # Calcular tamaño de nodos
+        node_sizes = tamaño_base * p
+
+        # Dibujar red
+        nx.draw_networkx(
+            G, pos=G_layout, ax=ax,
+            node_size=node_sizes,
+            alpha=0.6,
+            edgecolors='black',
+            linewidths=0.5,
+            width=1.5,
+            with_labels=False
+        )
+
+        ax.set_title(f"{titulo_general}: {clave}", fontsize=12)
+        ax.axis('off')
+
+    # Borrar ejes sobrantes
+    for j in range(i+1, len(axes)):
+        fig.delaxes(axes[j])
+
+    fig.suptitle(titulo_general, fontsize=16)
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92)
+    plt.show()
 
 
 
