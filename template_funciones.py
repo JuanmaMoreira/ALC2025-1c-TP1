@@ -3,6 +3,67 @@ import scipy
 import matplotlib.pyplot as plt
 import networkx as nx
 
+def crear_submatriz(A,v):
+    selector_booleano = [i == 1 for i in v]
+    return A[np.ix_(selector_booleano,selector_booleano)]
+
+def calcular_matriz_K(A):
+    # Calcula inversa de la matriz K, que tiene en su diagonal la suma por filas de A 
+    dimFilas = A.shape[0]
+    K = np.eye(dimFilas)
+    for i in range(dimFilas):
+        K[i,i] = np.sum(A[i])
+    return K
+
+def calcula_L(A):
+    return calcular_matriz_K(A) - A
+
+def calcula_R(A):
+    # construyo P con Pij = kikj/2E con E el numero total de aristas
+    E = np.sum(A) / 2
+    K = calcular_matriz_K(A)
+    P = np.zeros_like(A, dtype=float)
+    for i in range(A.shape[0]):
+        for j in range(0,i+1):
+                P[i, j] = (K[i, i] * K[j, j]) / (2 * E)
+                P[j,i] = P[i,j] # P debe ser simétrica
+    return A - P
+
+def calcula_lambda(L,v):
+    return 1/4 * (v.T @ L @ v)
+def calcula_Q(R,v):
+    return 1/4 * (v @ R @ v)
+
+def laplaciano_iterativo(A,niveles,nombres_s=None):
+    # Recibe una matriz A, una cantidad de niveles sobre los que hacer cortes, y los nombres de los nodos
+    # Retorna una lista con conjuntos de nodos representando las comunidades.
+    # La función debe, recursivamente, ir realizando cortes y reduciendo en 1 el número de niveles hasta llegar a 0 y retornar.
+    if nombres_s is None: # Si no se proveyeron nombres, los asignamos poniendo del 0 al N-1
+        nombres_s = range(A.shape[0])
+    if A.shape[0] == 1 or niveles == 0: # Si llegamos al último paso, retornamos los nombres en una lista
+        return([nombres_s])
+
+    L = calcula_L(A)
+    autovalores, autovectores = np.linalg.eig(L)
+    # Ordeno autovalores, y de forma acorde, autovectores
+    idx = autovalores.argsort()[::1]
+    autovalores = autovalores[idx]
+    autovectores = autovectores[:,idx]
+    # autovalor 2 asociado al autovalor minimo que NO es cero
+    v2 = autovectores[:,1]
+    # obtengo el vector de signo
+    v2_sign = np.sign(autovectores[:,1])
+    # calculo de Ap y An
+    Ap = crear_submatriz(A,v2_sign)
+    An = crear_submatriz(A,v2_sign)
+
+            
+    return(
+            laplaciano_iterativo(Ap,niveles-1,
+                                     nombres_s=[ni for ni,vi in zip(nombres_s,v2) if vi>0]) +
+            laplaciano_iterativo(An,niveles-1,
+                                     nombres_s=[ni for ni,vi in zip(nombres_s,v2) if vi<0])
+                )    
 
 def construye_adyacencia(D,m): 
     # Función que construye la matriz de adyacencia del grafo de museos
