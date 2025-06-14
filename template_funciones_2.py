@@ -11,6 +11,37 @@
 #])
 import numpy as np
 import scipy
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import networkx as nx
+
+
+#recibe un grafo, una lista de sus comunidades y una paleta de colores a usar para colorear.
+# devuelve el layout adecuado para aristas y vertices segun pertenezcan o no a cada comunidad (colorea segun pertenencia a comunidad)
+def graficar_comunidades_en_grafo(G, comunidades, palette="tab20"):
+    # 1. Generar colores para cada comunidad
+    cmap = plt.get_cmap(palette)
+    colores_comunidades = cmap(np.linspace(0, 1, len(comunidades)))
+    colores_hex = [f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}" 
+                  for r, g, b, _ in colores_comunidades]
+
+    # mapea nodos a colores
+    color_por_nodo = {}  # ¡Asegúrate de que sea un diccionario!
+    for i, com in enumerate(comunidades):
+        for nodo in com:
+            color_por_nodo[nodo] = colores_hex[i]  # Nodo → color
+
+    #  colores para aristas (mismo color si misma comunidad)
+    edge_colors = []
+    for u, v in G.edges():
+        if color_por_nodo.get(u) == color_por_nodo.get(v):
+            edge_colors.append(color_por_nodo[u])
+        else:
+            edge_colors.append("#e0e0e0")  # Gris para aristas entre comunidades
+
+    return edge_colors, color_por_nodo  # Devuelve el diccionario correcto
+
+
 
 def calcula_K(A):
     # Calcula la matriz de grado K, que tiene en su diagonal la suma por filas de A 
@@ -104,7 +135,7 @@ def resolver_con_LU(A, b):
     return x
 
 
-def metpot1(A, tol=1e-8, maxrep=np.Inf):
+def metpot1(A, tol=1e-8, maxrep=np.inf):
     """
     Calcula el autovalor de mayor módulo de A y su autovector asociado por el método de la potencia.
     Input: A (matriz cuadrada), tol (tolerancia), maxrep (máximo de iteraciones)
@@ -132,20 +163,20 @@ def metpot1(A, tol=1e-8, maxrep=np.Inf):
         print('MaxRep alcanzado')
     return v, l, nrep < maxrep
 
-def deflaciona(A, tol=1e-8, maxrep=np.Inf):
+def deflaciona(A, tol=1e-8, maxrep=np.inf):
     # Recibe la matriz A, una tolerancia para el método de la potencia, y un número máximo de repeticiones
     v1,l1,_ = metpot1(A, tol, maxrep) # Buscamos primer autovector con método de la potencia
     deflA = A - l1 * np.outer(v1, v1)  # Deflaciona usando producto externo
     return deflA
 
-def metpot2(A, v1, l1, tol=1e-8, maxrep=np.Inf):
+def metpot2(A, v1, l1, tol=1e-8, maxrep=np.inf):
     # La funcion aplica el metodo de la potencia para buscar el segundo autovalor de A, suponiendo que sus autovectores son ortogonales
     # v1 y l1 son los primeors autovectores y autovalores de A
     deflA = A - l1 * np.outer(v1, v1)
     return metpot1(deflA, tol, maxrep)
 
 
-def metpotI(A, mu, tol=1e-8, maxrep=np.Inf):
+def metpotI(A, mu, tol=1e-8, maxrep=np.inf):
     # Retorna el primer autovalor de la inversa de A + mu*I, junto a su autovector y si el método convergió.
     n = A.shape[0]
     I = np.eye(n)
@@ -158,7 +189,7 @@ def metpotI(A, mu, tol=1e-8, maxrep=np.Inf):
         X_inv[:, i] = resolver_con_LU(X, e_i)  # Columna i de la inversa
     return metpot1(X_inv, tol, maxrep)
 
-def metpotI2(A, mu, tol=1e-8, maxrep=np.Inf):
+def metpotI2(A, mu, tol=1e-8, maxrep=np.inf):
     """
     Calcula el segundo autovalor más pequeño de A + mu*I y su autovector usando el método de la potencia inversa con deflación.
     Usa factorización LU para la inversa y aplica metpot1.
