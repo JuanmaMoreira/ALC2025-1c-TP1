@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import networkx as nx
 
-def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, max_cols=3, figsize_base=5, node_sizes):
+def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_sizes, max_cols=3, figsize_base=5):
     """
     Grafica grafos con comunidades en un grid flexible.
     """
@@ -419,7 +419,7 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
     # Retorna una lista con conjuntos de nodos representando las comunidades.
     # La función debe, recursivamente, ir realizando cortes y reduciendo en 1 el número de niveles hasta llegar a 0 y retornar.
     
-    np.random.seed(42)  # Fijar semilla para reproducibilidad
+    np.random.seed(10)
     
     if nombres_s is None: # Si no se proveyeron nombres, los asignamos poniendo del 0 al N-1
         nombres_s = range(A.shape[0])
