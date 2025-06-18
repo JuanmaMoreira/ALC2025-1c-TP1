@@ -12,36 +12,226 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
+import matplotlib.colors as mcolors
 import networkx as nx
+
+def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, max_cols=3, figsize_base=5, node_sizes):
+    """
+    Grafica grafos con comunidades en un grid flexible.
+    """
+    # configuración del grid
+    n_grafos = len(datos)
+    n_cols = min(n_grafos, max_cols)
+    n_rows = int(np.ceil(n_grafos / n_cols))
+    
+    fig, axes = plt.subplots(
+        n_rows, n_cols, 
+        figsize=(figsize_base * n_cols, figsize_base * n_rows),
+        squeeze=False
+    )
+    axes = axes.flatten()
+    
+    # itero para ir graficando cada grafo con sus comunidades
+    for i, ax in enumerate(axes[:n_grafos]):
+        # Extraigo los datos
+        if len(datos[i]) == 3:
+            grafo, comunidades, info_dict = datos[i]
+        else:
+            grafo, comunidades = datos[i]
+            info_dict = {}
+        
+        # Procesar info_dict
+        title = info_dict.get('title', f"Grafo {i+1}")
+        modularidad = info_dict.get('modularidad')
+        n_comunidades = info_dict.get('n_comunidades')
+        metadata = info_dict.get('metadata', {})
+        
+        # Calcular valores si no se proporcionaron
+        if n_comunidades is None:
+            comunidades_para_contar = [set(c) for c in comunidades if c] if isinstance(comunidades, list) else [set(comunidades)]
+            n_comunidades = len(comunidades_para_contar) if comunidades_para_contar else 1
+        
+        if modularidad is None:
+            try:
+                comunidades_para_modularidad = [set(c) for c in comunidades if c] if isinstance(comunidades, list) else [set(comunidades)]
+                modularidad = round(nx.community.modularity(grafo, comunidades_para_modularidad), 3)
+            except:
+                modularidad = 0.0
+        
+        # Aplico color a vertices y nodos segun comunidad
+        colores_com = plt.cm.get_cmap(paleta)(np.linspace(0, 1, n_comunidades)) if n_comunidades > 0 else ['#888888']
+        color_por_nodo = {}
+        
+        if isinstance(comunidades, list):
+            for i_com, com in enumerate(comunidades):
+                for nodo in com:
+                    color_por_nodo[nodo] = colores_com[i_com % len(colores_com)]
+        
+        edge_colors = []
+        for u, v in grafo.edges():
+            color_u = color_por_nodo.get(u, "#888888")
+            color_v = color_por_nodo.get(v, "#888888")
+
+            same_color = np.array_equal(color_u, color_v) if isinstance(color_u, np.ndarray) else (color_u == color_v)
+            edge_colors.append(color_u if same_color else "#cccccc")
+        
+
+        barrios.to_crs("EPSG:22184").boundary.plot(ax=ax, color='gray', linewidth=0.5)
+        
+        nx.draw_networkx_nodes(
+            grafo, G_layout, ax=ax,
+            node_size=50,
+            node_color=[color_por_nodo.get(n, "#888888") for n in grafo.nodes()],
+            linewidths=0.5,
+            edgecolors="white"
+        )
+        
+        nx.draw_networkx_edges(
+            grafo, G_layout, ax=ax,
+            edge_color=edge_colors,
+            width=0.8,
+            alpha=0.6
+        )
+        
+        # Agrego titulo
+        metadata_str = " | ".join(f"{k}:{v}" for k, v in metadata.items())
+        title_parts = [
+            title,
+            f"Comunidades: {n_comunidades}",
+            f"Q: {modularidad}",
+            metadata_str
+        ]
+        full_title = "\n".join(filter(None, title_parts))
+        
+        ax.set_title(full_title, fontsize=10, pad=10)
+        ax.set_axis_off()
+    
+    # Ocultar ejes vacíos
+    for ax in axes[n_grafos:]:
+        ax.set_visible(False)
+    
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, paleta, tam):
+    """
+    Función mejorada para graficar grafos con comunidades.
+    Maneja:
+    - Grafos únicos (nx.Graph) o múltiples (dict)
+    - Comunidades vacías
+    - Estructuras de partición inválidas
+    """
+    fig, axes = plt.subplots(tam[0], tam[1], figsize=(15, 15))
+    
+    # Convertir axes a array 2D siempre
+    if not isinstance(axes, np.ndarray):
+        axes = np.array([[axes]])
+    axes = axes.reshape(tam[0], tam[1])
+    
+    # --- Manejo flexible de grafos_m ---
+    # Caso 1: Si es un solo grafo (nx.Graph)
+    if isinstance(grafos_m, nx.Graph):
+        grafos_items = [("Nombre", grafos_m)]
+    # Caso 2: Si es un diccionario {nombre: grafo}
+    elif isinstance(grafos_m, dict):
+        grafos_items = grafos_m.items()
+    else:
+        raise TypeError("grafos_m debe ser nx.Graph o dict")
+    
+    # --- Iteración principal ---
+    for ax, (nombre_grafo, grafo) in zip(axes.ravel(), grafos_items):
+        # 1. Obtener comunidades (manejo seguro para dict/list)
+        comunidades = comunidades_m_sim.get(nombre_grafo, []) if isinstance(comunidades_m_sim, dict) else comunidades_m_sim
+        
+        # 2. Normalizar estructura a lista-de-listas
+        if not isinstance(comunidades, list):
+            comunidades = [[comunidades]] if comunidades else []
+        elif comunidades and not isinstance(comunidades[0], list):
+            comunidades = [comunidades]
+        
+        # 3. Preparar comunidades para modularidad (filtra vacías)
+        comunidades_para_modularidad = [set(c) for c in comunidades if c]
+        if not comunidades_para_modularidad:
+            comunidades_para_modularidad = [set(grafo.nodes())]
+        
+        # 4. Calcular modularidad con manejo de errores
+        try:
+            modularidad = round(nx.community.modularity(grafo, comunidades_para_modularidad), 3)
+        except nx.NotAPartition:
+            print(f"Advertencia: Estructura inválida en {nombre_grafo}. Usando modularidad=0")
+            modularidad = 0.0
+        
+        # 5. Colorear el grafo
+        edge_colors, color_por_nodo = calcular_colores_segun_comunidades(grafo, comunidades, paleta)
+        
+        # 6. Dibujar
+        barrios.to_crs("EPSG:22184").boundary.plot(ax=ax, color='gray')
+        
+        nx.draw_networkx_nodes(
+            grafo, G_layout, ax=ax,
+            node_size=200,
+            node_color=[color_por_nodo.get(n, '#888888') for n in grafo.nodes()]
+        )
+        nx.draw_networkx_edges(
+            grafo, G_layout, ax=ax,
+            edge_color=edge_colors,
+            width=1.0,
+            alpha=0.6
+        )
+        
+        ax.set_title(
+            f" m={nombre_grafo} | Comunidades: {len(comunidades_para_modularidad)} | Q={modularidad}", 
+            fontsize=20,
+            pad=10
+        )
+        ax.set_axis_off()
+
+    plt.tight_layout()
+    plt.show()
 
 
 #recibe un grafo, una lista de sus comunidades y una paleta de colores a usar para colorear.
 # devuelve el layout adecuado para aristas y vertices segun pertenezcan o no a cada comunidad (colorea segun pertenencia a comunidad)
-def graficar_comunidades_en_grafo(G, comunidades, palette="tab20"):
-    # 1. Generar colores para cada comunidad
+def calcular_colores_segun_comunidades(G, comunidades, palette="tab20", oscurecer_aristas=0.9, gris_inter="#7f7f7f"):
+    """
+    - Filtra comunidades vacías ANTES de calcular modularidad
+    - Maneja correctamente el caso de listas vacías
+    """
+    comunidades_filtradas = [com for com in comunidades if com]
+    
+    # Si todas están vacías (caso extremo), considerar todos los nodos como una comunidad
+    if not comunidades_filtradas:
+        comunidades_filtradas = [list(G.nodes())]
+    
+    # Generación de colores
     cmap = plt.get_cmap(palette)
-    colores_comunidades = cmap(np.linspace(0, 1, len(comunidades)))
-    colores_hex = [f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}" 
-                  for r, g, b, _ in colores_comunidades]
-
-    # mapea nodos a colores
-    color_por_nodo = {}  # ¡Asegúrate de que sea un diccionario!
-    for i, com in enumerate(comunidades):
+    colores = [mcolors.to_hex(cmap(i)) for i in np.linspace(0, 1, len(comunidades_filtradas))]
+    
+    # Mapeo nodo-color
+    color_por_nodo = {}
+    for i, com in enumerate(comunidades_filtradas):
         for nodo in com:
-            color_por_nodo[nodo] = colores_hex[i]  # Nodo → color
-
-    #  colores para aristas (mismo color si misma comunidad)
+            color_por_nodo[nodo] = colores[i]
+    # se asegura de que si algun nodo no esta en una comunidad es coloreado tambien
+    for nodo in G.nodes():
+        if nodo not in color_por_nodo:
+            color_por_nodo[nodo] = gris_inter
+    
+    # Colorear aristas
     edge_colors = []
     for u, v in G.edges():
-        if color_por_nodo.get(u) == color_por_nodo.get(v):
-            edge_colors.append(color_por_nodo[u])
+        if color_por_nodo[u] == color_por_nodo[v] and color_por_nodo[u] != gris_inter:
+            r, g, b = mcolors.to_rgb(color_por_nodo[u])
+            edge_colors.append(mcolors.to_hex((
+                r * oscurecer_aristas,
+                g * oscurecer_aristas,
+                b * oscurecer_aristas
+            )))
         else:
-            edge_colors.append("#e0e0e0")  # Gris para aristas entre comunidades
-
-    return edge_colors, color_por_nodo  # Devuelve el diccionario correcto
-
-
+            edge_colors.append(gris_inter)
+    
+    return edge_colors, color_por_nodo
 
 def calcula_K(A):
     # Calcula la matriz de grado K, que tiene en su diagonal la suma por filas de A 
@@ -238,7 +428,7 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
         return([nombres_s])
     else: # Sino:
         L = calcula_L(A) # Recalculamos el L
-        mu = 0.1
+        mu = 1.0
         v,l, _ = metpotI2(L, mu) # Encontramos el segundo autovector de L
         
         # Recortamos A en dos partes, la que está asociada a el signo positivo de v y la que está asociada al negativo
@@ -257,6 +447,40 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
             laplaciano_iterativo(Am, niveles - 1, nombres_neg)
         )       
 
+def laplaciano_iterativo_ref(A, niveles, nombres_s=None, umbral=0.1):
+    np.random.seed(42)
+    
+    if nombres_s is None:
+        nombres_s = range(A.shape[0])
+    
+    # Filtrar conexiones débiles (opcional)
+    A_filtrada = A.copy()
+    A_filtrada[A < umbral] = 0
+    
+    if A_filtrada.shape[0] == 1 or niveles == 0:
+        return [nombres_s]
+    else:
+        L = calcula_L(A_filtrada)
+        mu = 0.1  # Puedes ajustar este valor
+        v, l, _ = metpotI2(L, mu)
+        
+        idx_pos = [i for i, vi in enumerate(v) if vi > 0]
+        idx_neg = [i for i, vi in enumerate(v) if vi < 0]
+        
+        # Si no hay división posible, retornar todo como una comunidad
+        if not idx_pos or not idx_neg:
+            return [nombres_s]
+        
+        Ap = A_filtrada[np.ix_(idx_pos, idx_pos)]
+        Am = A_filtrada[np.ix_(idx_neg, idx_neg)]
+        
+        nombres_pos = [nombres_s[i] for i in idx_pos]
+        nombres_neg = [nombres_s[i] for i in idx_neg]
+        
+        return (
+            laplaciano_iterativo(Ap, niveles - 1, nombres_pos, umbral) +
+            laplaciano_iterativo(Am, niveles - 1, nombres_neg, umbral)
+        )
 
 def modularidad_iterativo(A=None, R=None, nombres_s=None):
     # Recibe una matriz A, una matriz R de modularidad, y los nombres de los nodos
