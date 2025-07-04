@@ -15,9 +15,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import networkx as nx
 
-def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_sizes, max_cols=3, figsize_base=5):
+def plot_grafos_comunidades_flexible(
+    datos, G_layout, barrios, paleta, node_sizes, max_cols=3, figsize_base=5, titulo_general=None):
     """
-    Grafica grafos con comunidades en un grid flexible.
+    Grafica grafos con comunidades en un grid flexible, con opción de título general
+    y soporte para tamaños de nodo personalizados.
     """
     # configuración del grid
     n_grafos = len(datos)
@@ -29,6 +31,10 @@ def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_size
         figsize=(figsize_base * n_cols, figsize_base * n_rows),
         squeeze=False
     )
+    
+    if titulo_general:
+        fig.suptitle(titulo_general, fontsize=16, y=1.02)
+    
     axes = axes.flatten()
     
     # itero para ir graficando cada grafo con sus comunidades
@@ -58,7 +64,7 @@ def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_size
             except:
                 modularidad = 0.0
         
-        # Aplico color a vertices y nodos segun comunidad
+        # Aplico color a vértices según comunidad
         colores_com = plt.cm.get_cmap(paleta)(np.linspace(0, 1, n_comunidades)) if n_comunidades > 0 else ['#888888']
         color_por_nodo = {}
         
@@ -71,29 +77,37 @@ def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_size
         for u, v in grafo.edges():
             color_u = color_por_nodo.get(u, "#888888")
             color_v = color_por_nodo.get(v, "#888888")
-
             same_color = np.array_equal(color_u, color_v) if isinstance(color_u, np.ndarray) else (color_u == color_v)
             edge_colors.append(color_u if same_color else "#cccccc")
         
-
         barrios.to_crs("EPSG:22184").boundary.plot(ax=ax, color='gray', linewidth=0.5)
         
+        # Tamaños por nodo: si node_sizes es un dict, se usa por nodo. Si no, se aplica como valor fijo.
+        if isinstance(node_sizes, dict):
+            sizes = [node_sizes.get(n, 50) for n in grafo.nodes()]
+        elif isinstance(node_sizes, (int, float)):
+            sizes = node_sizes
+        else:
+            sizes = 50  # valor por defecto en caso de tipo inesperado
+
+        # Dibujar nodos
         nx.draw_networkx_nodes(
             grafo, G_layout, ax=ax,
-            node_size=50,
+            node_size=sizes,
             node_color=[color_por_nodo.get(n, "#888888") for n in grafo.nodes()],
             linewidths=0.5,
             edgecolors="white"
         )
         
+        # Dibujar aristas
         nx.draw_networkx_edges(
             grafo, G_layout, ax=ax,
             edge_color=edge_colors,
             width=0.8,
             alpha=0.6
         )
-        
-        # Agrego titulo
+
+        # Agregar título del subgráfico
         metadata_str = " | ".join(f"{k}:{v}" for k, v in metadata.items())
         title_parts = [
             title,
@@ -102,72 +116,64 @@ def plot_grafos_comunidades_flexible(datos, G_layout, barrios, paleta, node_size
             metadata_str
         ]
         full_title = "\n".join(filter(None, title_parts))
-        
         ax.set_title(full_title, fontsize=10, pad=10)
         ax.set_axis_off()
     
-    # Ocultar ejes vacíos
+    # Ocultar ejes vacíos si sobran
     for ax in axes[n_grafos:]:
         ax.set_visible(False)
     
     plt.tight_layout()
     plt.show()
 
+        
 
-def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, paleta, tam):
+
+
+def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, paleta, tam, titulo=None):
     """
     Función mejorada para graficar grafos con comunidades.
-    Maneja:
-    - Grafos únicos (nx.Graph) o múltiples (dict)
-    - Comunidades vacías
-    - Estructuras de partición inválidas
+    Ahora permite incluir un título general opcional.
     """
     fig, axes = plt.subplots(tam[0], tam[1], figsize=(15, 15))
-    
+
+    # Si se proporciona un título, lo agregamos
+    if titulo:
+        fig.suptitle(titulo, fontsize=18, y=1.02)
+
     # Convertir axes a array 2D siempre
     if not isinstance(axes, np.ndarray):
         axes = np.array([[axes]])
     axes = axes.reshape(tam[0], tam[1])
-    
-    # --- Manejo flexible de grafos_m ---
-    # Caso 1: Si es un solo grafo (nx.Graph)
+
     if isinstance(grafos_m, nx.Graph):
         grafos_items = [("Nombre", grafos_m)]
-    # Caso 2: Si es un diccionario {nombre: grafo}
     elif isinstance(grafos_m, dict):
         grafos_items = grafos_m.items()
     else:
         raise TypeError("grafos_m debe ser nx.Graph o dict")
-    
-    # --- Iteración principal ---
+
     for ax, (nombre_grafo, grafo) in zip(axes.ravel(), grafos_items):
-        # 1. Obtener comunidades (manejo seguro para dict/list)
         comunidades = comunidades_m_sim.get(nombre_grafo, []) if isinstance(comunidades_m_sim, dict) else comunidades_m_sim
         
-        # 2. Normalizar estructura a lista-de-listas
         if not isinstance(comunidades, list):
             comunidades = [[comunidades]] if comunidades else []
         elif comunidades and not isinstance(comunidades[0], list):
             comunidades = [comunidades]
-        
-        # 3. Preparar comunidades para modularidad (filtra vacías)
+
         comunidades_para_modularidad = [set(c) for c in comunidades if c]
         if not comunidades_para_modularidad:
             comunidades_para_modularidad = [set(grafo.nodes())]
-        
-        # 4. Calcular modularidad con manejo de errores
+
         try:
             modularidad = round(nx.community.modularity(grafo, comunidades_para_modularidad), 3)
         except nx.NotAPartition:
             print(f"Advertencia: Estructura inválida en {nombre_grafo}. Usando modularidad=0")
             modularidad = 0.0
-        
-        # 5. Colorear el grafo
+
         edge_colors, color_por_nodo = calcular_colores_segun_comunidades(grafo, comunidades, paleta)
-        
-        # 6. Dibujar
         barrios.to_crs("EPSG:22184").boundary.plot(ax=ax, color='gray')
-        
+
         nx.draw_networkx_nodes(
             grafo, G_layout, ax=ax,
             node_size=200,
@@ -179,9 +185,9 @@ def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, pale
             width=1.0,
             alpha=0.6
         )
-        
+
         ax.set_title(
-            f" m={nombre_grafo} | Comunidades: {len(comunidades_para_modularidad)} | Q={modularidad}", 
+            f" m={nombre_grafo} | Comunidades: {len(comunidades_para_modularidad)} | Q={modularidad}",
             fontsize=20,
             pad=10
         )
@@ -189,6 +195,7 @@ def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, pale
 
     plt.tight_layout()
     plt.show()
+
 
 
 #recibe un grafo, una lista de sus comunidades y una paleta de colores a usar para colorear.
