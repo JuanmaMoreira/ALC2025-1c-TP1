@@ -133,7 +133,6 @@ def plot_grafos_comunidades_flexible(
 def plot_grafos_comunidades(grafos_m, comunidades_m_sim, G_layout, barrios, paleta, tam, titulo=None):
     """
     Función mejorada para graficar grafos con comunidades.
-    Ahora permite incluir un título general opcional.
     """
     fig, axes = plt.subplots(tam[0], tam[1], figsize=(15, 15))
 
@@ -426,7 +425,6 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
     # Retorna una lista con conjuntos de nodos representando las comunidades.
     # La función debe, recursivamente, ir realizando cortes y reduciendo en 1 el número de niveles hasta llegar a 0 y retornar.
     
-    np.random.seed(10)
     
     if nombres_s is None: # Si no se proveyeron nombres, los asignamos poniendo del 0 al N-1
         nombres_s = range(A.shape[0])
@@ -455,8 +453,7 @@ def laplaciano_iterativo(A,niveles,nombres_s=None):
         )       
 
 def laplaciano_iterativo_ref(A, niveles, nombres_s=None, umbral=0.1):
-    np.random.seed(42)
-    
+
     if nombres_s is None:
         nombres_s = range(A.shape[0])
     
@@ -493,8 +490,6 @@ def modularidad_iterativo(A=None, R=None, nombres_s=None):
     # Recibe una matriz A, una matriz R de modularidad, y los nombres de los nodos
     # Retorna una lista con conjuntos de nodos representando las comunidades.
 
-    np.random.seed(42)  # Fijar semilla para reproducibilidad
-    
     if A is None and R is None:
         print('Dame una matriz')
         return np.nan
